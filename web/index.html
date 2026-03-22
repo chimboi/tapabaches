@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tapabaches - Reporta baches en tu ciudad</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; }
+    header {
+      background: linear-gradient(135deg, #e74c3c, #c0392b);
+      color: white; padding: 24px; text-align: center;
+    }
+    header h1 { font-size: 2rem; letter-spacing: -0.5px; }
+    header p { opacity: 0.9; margin-top: 6px; font-size: 1.05rem; }
+    .stats {
+      display: flex; justify-content: center; gap: 40px;
+      padding: 18px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .stat { text-align: center; }
+    .stat-num { font-size: 2.2rem; font-weight: bold; color: #e74c3c; }
+    .stat-label { font-size: 0.85rem; color: #666; }
+    #map { height: 500px; width: 100%; }
+    .container { max-width: 900px; margin: 0 auto; padding: 0 15px; }
+    .cta {
+      text-align: center; padding: 28px; background: white;
+      margin: 24px auto; max-width: 900px; border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .cta p { color: #555; margin-bottom: 10px; font-size: 1.05rem; }
+    .cta .whatsapp-btn {
+      display: inline-block; background: #25D366; color: white;
+      padding: 12px 28px; border-radius: 30px; text-decoration: none;
+      font-weight: 600; font-size: 1.1rem; margin-top: 8px;
+      transition: background 0.2s;
+    }
+    .cta .whatsapp-btn:hover { background: #1da851; }
+    .reports-section { max-width: 900px; margin: 20px auto; padding: 0 15px 40px; }
+    .reports-section h2 { margin-bottom: 15px; color: #333; font-size: 1.3rem; }
+    .report-card {
+      background: white; border-radius: 12px; padding: 18px;
+      margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      display: flex; gap: 16px; align-items: flex-start;
+    }
+    .report-info { flex: 1; }
+    .report-info h3 { font-size: 1.05rem; color: #333; margin-bottom: 5px; }
+    .report-info p { font-size: 0.92rem; color: #666; margin-bottom: 5px; }
+    .badge {
+      display: inline-block; padding: 4px 12px; border-radius: 12px;
+      font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+    }
+    .badge-pendiente { background: #fff3cd; color: #856404; }
+    .badge-en-proceso { background: #cce5ff; color: #004085; }
+    .badge-resuelto { background: #d4edda; color: #155724; }
+    .report-date { font-size: 0.8rem; color: #999; margin-left: 8px; }
+    .no-reports { text-align: center; padding: 50px; color: #999; font-size: 1.1rem; }
+    .icon-placeholder {
+      width: 60px; height: 60px; background: #fee; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.8rem; flex-shrink: 0;
+    }
+    footer {
+      text-align: center; padding: 20px; color: #999; font-size: 0.85rem;
+      border-top: 1px solid #eee; margin-top: 20px;
+    }
+    .form-section {
+      max-width: 900px; margin: 24px auto; padding: 0 15px;
+    }
+    .report-form {
+      background: white; border-radius: 12px; padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .report-form h2 { margin-bottom: 16px; color: #333; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-weight: 600; margin-bottom: 4px; color: #444; font-size: 0.9rem; }
+    .form-group input, .form-group textarea {
+      width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px;
+      font-size: 0.95rem; font-family: inherit;
+    }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .form-row { display: flex; gap: 12px; }
+    .form-row .form-group { flex: 1; }
+    .btn-submit {
+      background: #e74c3c; color: white; border: none; padding: 12px 28px;
+      border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-submit:hover { background: #c0392b; }
+    .btn-locate {
+      background: #3498db; color: white; border: none; padding: 8px 16px;
+      border-radius: 6px; font-size: 0.85rem; cursor: pointer; margin-top: 4px;
+    }
+    .success-msg { background: #d4edda; color: #155724; padding: 12px; border-radius: 8px; margin-top: 12px; display: none; }
+    @media (max-width: 600px) {
+      .form-row { flex-direction: column; gap: 0; }
+      .stats { gap: 20px; }
+      .report-card { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Tapabaches</h1>
+    <p>Reporta baches en tu ciudad y ayuda a mejorar las calles</p>
+  </header>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-num" id="total">0</div>
+      <div class="stat-label">Reportes totales</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" id="pending">0</div>
+      <div class="stat-label">Pendientes</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" id="resolved">0</div>
+      <div class="stat-label">Resueltos</div>
+    </div>
+  </div>
+
+  <div id="map"></div>
+
+  <div class="form-section">
+    <div class="report-form">
+      <h2>Reportar un bache</h2>
+      <form id="reportForm">
+        <div class="form-group">
+          <label>Ubicacion (calle, colonia, referencia)</label>
+          <input type="text" id="ubicacion" placeholder="Ej: Av. Patria esquina con Lopez Mateos" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Latitud</label>
+            <input type="number" id="lat" step="any" placeholder="20.6890">
+          </div>
+          <div class="form-group">
+            <label>Longitud</label>
+            <input type="number" id="lng" step="any" placeholder="-103.4155">
+          </div>
+        </div>
+        <button type="button" class="btn-locate" onclick="getLocation()">Usar mi ubicacion actual</button>
+        <div class="form-group" style="margin-top:14px">
+          <label>Descripcion del bache</label>
+          <textarea id="descripcion" placeholder="Describe el tamano, profundidad, si es peligroso..." required></textarea>
+        </div>
+        <div class="form-group">
+          <label>Tu nombre (opcional)</label>
+          <input type="text" id="reportante" placeholder="Anonimo">
+        </div>
+        <button type="submit" class="btn-submit">Enviar reporte</button>
+        <div class="success-msg" id="successMsg">Reporte enviado con exito. Gracias por ayudar a tu comunidad!</div>
+      </form>
+    </div>
+  </div>
+
+  <div class="cta">
+    <p>Tambien puedes reportar baches por WhatsApp:</p>
+    <a class="whatsapp-btn" href="https://wa.me/5214611147504?text=Quiero%20reportar%20un%20bache" target="_blank">
+      Reportar por WhatsApp
+    </a>
+  </div>
+
+  <div class="reports-section">
+    <h2>Reportes recientes</h2>
+    <div id="reports-list">
+      <div class="no-reports">No hay reportes aun. Se el primero en reportar!</div>
+    </div>
+  </div>
+
+  <footer>
+    Tapabaches - Un proyecto de OpenClaw para mejorar nuestras calles
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const API_BASE = '/api';
+    const map = L.map('map').setView([20.6597, -103.3496], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    const redIcon = L.icon({
+      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34]
+    });
+    const greenIcon = L.icon({
+      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34]
+    });
+
+    let markers = [];
+
+    function getLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+          document.getElementById('lat').value = pos.coords.latitude.toFixed(6);
+          document.getElementById('lng').value = pos.coords.longitude.toFixed(6);
+        }, () => alert('No se pudo obtener la ubicacion'));
+      }
+    }
+
+    document.getElementById('reportForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const report = {
+        id: String(Date.now()),
+        fecha: new Date().toISOString(),
+        ubicacion: document.getElementById('ubicacion').value,
+        lat: parseFloat(document.getElementById('lat').value) || null,
+        lng: parseFloat(document.getElementById('lng').value) || null,
+        descripcion: document.getElementById('descripcion').value,
+        foto: null,
+        reportadoPor: document.getElementById('reportante').value || 'Anonimo (web)',
+        estado: 'pendiente'
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/reports`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(report)
+        });
+        if (res.ok) {
+          document.getElementById('successMsg').style.display = 'block';
+          e.target.reset();
+          setTimeout(() => { document.getElementById('successMsg').style.display = 'none'; }, 4000);
+          loadReports();
+        }
+      } catch (err) {
+        alert('Error al enviar el reporte. Intenta de nuevo.');
+      }
+    });
+
+    async function loadReports() {
+      try {
+        const res = await fetch(`${API_BASE}/reports`);
+        const reports = await res.json();
+
+        document.getElementById('total').textContent = reports.length;
+        document.getElementById('pending').textContent = reports.filter(r => r.estado === 'pendiente').length;
+        document.getElementById('resolved').textContent = reports.filter(r => r.estado === 'resuelto').length;
+
+        const list = document.getElementById('reports-list');
+        if (reports.length === 0) return;
+
+        list.innerHTML = '';
+        markers.forEach(m => map.removeLayer(m));
+        markers = [];
+        const bounds = [];
+
+        reports.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).forEach(report => {
+          if (report.lat && report.lng) {
+            const icon = report.estado === 'resuelto' ? greenIcon : redIcon;
+            const m = L.marker([report.lat, report.lng], { icon })
+              .addTo(map)
+              .bindPopup(`<b>${report.ubicacion || 'Bache'}</b><br>${report.descripcion || ''}<br><small>${report.fecha}</small>`);
+            markers.push(m);
+            bounds.push([report.lat, report.lng]);
+          }
+
+          const badgeClass = `badge-${report.estado || 'pendiente'}`;
+          list.innerHTML += `
+            <div class="report-card">
+              <div class="icon-placeholder">&#128679;</div>
+              <div class="report-info">
+                <h3>${report.ubicacion || 'Ubicacion no especificada'}</h3>
+                <p>${report.descripcion || 'Sin descripcion'}</p>
+                <span class="badge ${badgeClass}">${report.estado || 'pendiente'}</span>
+                <span class="report-date">${new Date(report.fecha).toLocaleDateString('es-MX')}</span>
+              </div>
+            </div>`;
+        });
+
+        if (bounds.length > 0) map.fitBounds(bounds, { padding: [50, 50] });
+      } catch (e) {
+        console.error('Error cargando reportes:', e);
+      }
+    }
+
+    loadReports();
+    setInterval(loadReports, 15000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+{
+  "buildCommand": "",
+  "outputDirectory": "web",
+  "rewrites": [
+    { "source": "/api/reports", "destination": "/api/reports" }
+  ]
+}
