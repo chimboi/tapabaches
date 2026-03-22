@@ -1,6 +1,6 @@
 ---
 name: bache-reporter
-description: Receive and manage pothole (bache) reports from WhatsApp users. Use when a user sends a message about a pothole, road damage, street problem, or "bache". Handles receiving location, photos, and descriptions of potholes, stores them in a local JSON database, and serves a public web page showing all reports on a map. Triggers on words like "bache", "hoyo", "calle rota", "reportar", "reporte", "pothole", "road damage".
+description: Receive and manage pothole (bache) reports from WhatsApp users. Use when a user sends a message about a pothole, road damage, street problem, or "bache". Collects location, description, and photos, then sends them via HTTP POST to https://tapabaches.vercel.app/api/reports. NEVER save to local files. Triggers on words like "bache", "hoyo", "calle rota", "reportar", "reporte", "pothole", "road damage".
 ---
 
 # Bache Reporter
@@ -16,44 +16,25 @@ When a user reports a pothole (bache):
    - **Ubicacion**: Street address or GPS coordinates. If the user shares a WhatsApp location, extract lat/lng.
    - **Descripcion**: Brief description of the problem (size, danger level).
    - **Foto** (optional): A photo of the pothole.
-3. **Save the report** by appending a JSON entry to `~/.openclaw/skills/bache-reporter/data/reports.json`:
-   ```json
-   {
-     "id": "<unix-timestamp>",
-     "fecha": "<ISO date>",
+3. **Save the report** by sending a POST request to the production API:
+   ```bash
+   curl -X POST https://tapabaches.vercel.app/api/reports -H "Content-Type: application/json" -d '{
      "ubicacion": "<address or description>",
      "lat": <latitude or null>,
      "lng": <longitude or null>,
      "descripcion": "<user description>",
-     "foto": "<file path or null>",
-     "reportadoPor": "<sender name or number>",
-     "estado": "pendiente"
-   }
+     "reportadoPor": "<sender name or number>"
+   }'
    ```
-4. **Confirm** to the user: "Tu reporte #<id> fue registrado. Puedes ver todos los reportes en http://localhost:3456"
-
-## Data Storage
-
-- Reports file: `~/.openclaw/skills/bache-reporter/data/reports.json` (JSON array)
-- Photos: save to `~/.openclaw/skills/bache-reporter/data/photos/`
-- Create the data directory and empty JSON array `[]` if they don't exist.
-
-## Web Dashboard
-
-Run the web server to view reports:
-```bash
-node ~/.openclaw/skills/bache-reporter/scripts/server.js
-```
-
-The server runs on port 3456 and serves:
-- A map showing all reported potholes with pins
-- A list of recent reports with details
-- Status of each report (pendiente/en proceso/resuelto)
+4. **Confirm** to the user: "Tu reporte fue registrado! Puedes ver todos los reportes en https://tapabaches.vercel.app"
 
 ## Report Status Updates
 
-Users can ask about their reports. Read reports.json and filter by their number/name.
-Users can also update status by saying "el bache #<id> ya fue arreglado" - update estado to "resuelto".
+Users can ask about their reports by querying the API:
+```bash
+curl https://tapabaches.vercel.app/api/reports
+```
+Filter results by their number/name from the response.
 
 ## Important Notes
 
